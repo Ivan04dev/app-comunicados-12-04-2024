@@ -1,0 +1,776 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Modal, Button } from 'react-bootstrap';
+import Swal from 'sweetalert2';
+
+function App() {
+  const [titulo, setTitulo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [comunicados, setComunicados] = useState([]);
+  const [portada, setPortada] = useState(null);
+  const [pdf, setPdf] = useState(null);
+  const [marcas, setMarcas] = useState([]);
+  const [marcaSeleccionada, setMarcaSeleccionada] = useState('');
+  const [puestosSeleccionados, setPuestosSeleccionados] = useState([]);
+  
+  const [ciudades, setCiudades] = useState({});
+
+  // Seleccionar todo (Divisiones, Regiones y Ciudades) 
+  const [selectAll, setSelectAll] = useState(false);
+  const [divisions, setDivisions] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [cities, setCities] = useState([]);
+  
+  // const handleCheckboxChangeAll = async () => {
+  //   setSelectAll(!selectAll); // Cambia el estado del checkbox
+  //   if (!selectAll) {
+  //     // Si el checkbox se selecciona, realiza la consulta para obtener todas las divisiones, regiones y ciudades
+  //     try {
+  //       const response = await axios.get('http://localhost:3000/todo'); // Realiza la solicitud HTTP
+  //       console.log(response.data); // Muestra los datos en la consola (puedes manejarlos como desees)
+  //     } catch (error) {
+  //       console.error('Error al obtener divisiones, regiones y ciudades:', error);
+  //     }
+  //   }
+  // };
+
+  const handleCheckboxChangeAll = async () => {
+    setSelectAll(!selectAll); // Cambia el estado del checkbox
+    if (!selectAll) {
+      // Si el checkbox se selecciona, realiza la consulta para obtener todas las divisiones, regiones y ciudades
+      cargarDivisionesRegionesYCiudades();
+    } else {
+      // Si el checkbox se deselecciona, vacía los arreglos de divisiones, regiones y ciudades
+      setDivisions([]);
+      setRegions([]);
+      setCities([]);
+    }
+  };
+
+  // Fin de seleccionar todo 
+
+  useEffect(() => {
+    // Lógica para cargar las divisiones, regiones y ciudades al montar el componente
+    cargarDivisionesRegionesYCiudades();
+  }, [])
+
+  // ************************************************************************************* 11:27 a. m. 10/04/2024
+
+  const cargarDivisionesRegionesYCiudades = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/todo'); // Realiza la solicitud HTTP
+      const { divisions, regions, cities } = response.data;
+      setDivisions(divisions);
+      setRegions(regions);
+      setCities(cities);
+    } catch (error) {
+      console.error('Error al obtener divisiones, regiones y ciudades:', error);
+    }
+  };
+
+  // Inhabilitar los checkboxes según la región seleccionada 
+  const [ciudadesSeleccionadas, setCiudadesSeleccionadas] = useState([]);
+
+
+  // Modal Form Editar
+  const [comunicadoEditando, setComunicadoEditando] = useState(null);
+  const [mostrarModalEdicion, setMostrarModalEdicion] = useState(false);
+
+  // Obtiene todas las divisiones, regiones y ciudades o con base a la marca seleccionada
+  const handleChangeMarca = async (event) => {
+    const value = event.target.value;
+    setMarcaSeleccionada(value); // Actualiza el estado con el valor seleccionado
+    try {
+      // Si se selecciona "nacional", se obtienen todas las ciudades
+      if (value === 'nacional') {
+        const response = await axios.get('http://localhost:3000/ciudades');
+        // Organiza las ciudades por división y región
+        const ciudadesAgrupadas = organizarCiudades(response.data);
+        console.log(ciudadesAgrupadas)
+        // Actualiza el estado con las ciudades obtenidas
+        setCiudades(ciudadesAgrupadas);
+      } else {
+        // Si se selecciona una marca específica, se realiza la consulta con base en la marca seleccionada
+        const response = await axios.get(`http://localhost:3000/ciudades?marca=${value}`);
+        // Organiza las ciudades por división y región
+        const ciudadesAgrupadas = organizarCiudades(response.data);
+        console.log(ciudadesAgrupadas);
+        // Actualiza el estado con las ciudades obtenidas
+        setCiudades(ciudadesAgrupadas);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      // Maneja el error como desees
+    }
+  };
+
+  // Función para organizar las ciudades por división y región
+  const organizarCiudades = (ciudades) => {
+    const ciudadesAgrupadas = {};
+    ciudades.forEach(ciudad => {
+      const { division, region } = ciudad;
+      if (!ciudadesAgrupadas[division]) {
+        ciudadesAgrupadas[division] = {};
+      }
+      if (!ciudadesAgrupadas[division][region]) {
+        ciudadesAgrupadas[division][region] = [];
+      }
+      ciudadesAgrupadas[division][region].push(ciudad);
+    });
+    return ciudadesAgrupadas;
+  };
+
+  useEffect(() => {
+    // Lógica para obtener las ciudades según la marca seleccionada al cargar el componente
+    handleChangeMarca({ target: { value: marcaSeleccionada } });
+  }, [marcaSeleccionada]);
+
+  // -----------------------------------------------------------------------------------------------
+
+  // Regresa un arreglo con las ciudades pertenecientes a esa región 
+  // const handleRegionChange = async (region) => {
+  //   try {
+  //     // Realiza una solicitud GET a /ciudadesporregion/:region
+  //     const response = await axios.get(`http://localhost:3000/ciudadesporregion/${region}`);
+  
+  //     // Maneja la respuesta de la API
+  //     console.log('Ciudades de la región', region, ':', response.data);
+      
+  //     // Actualiza el estado de las ciudades seleccionadas
+  //     setCiudadesSeleccionadas(response.data);
+  //   } catch (error) {
+  //     console.error('Error al obtener las ciudades de la región:', error);
+  //     // Maneja el error como desees
+  //   }
+  // };
+
+  // V2 
+  // const handleRegionChange = async (region) => {
+  //   try {
+  //     const response = await axios.get(`http://localhost:3000/ciudadesporregion/${region}`);
+  
+  //     console.log('Ciudades de la región', region, ':', response.data);
+      
+  //     setCiudadesSeleccionadas((prevCiudades) => {
+  //       // Obtenemos las ciudades seleccionadas previamente
+  //       const prevCiudadesSeleccionadas = { ...prevCiudades };
+  //       // Añadimos o quitamos las ciudades de la región seleccionada
+  //       if (response.data.length > 0) {
+  //         prevCiudadesSeleccionadas[region] = response.data.map((ciudad) => ciudad.ciudad);
+  //         console.log('Ciudades seleccionadas actualizadas:', prevCiudadesSeleccionadas);
+  //       } else {
+  //         delete prevCiudadesSeleccionadas[region];
+  //         console.log('No hay ciudades para la región:', region);
+  //       }
+  //       return { ...prevCiudadesSeleccionadas };
+  //     });
+  //   } catch (error) {
+  //     console.error('Error al obtener las ciudades de la región:', error);
+  //   }
+  // };
+  
+  // const handleRegionChange = async (region) => {
+  //   try {
+  //     const response = await axios.get(`http://localhost:3000/ciudadesporregion/${region}`);
+  
+  //     console.log('Ciudades de la región', region, ':', response.data);
+      
+  //     setCiudadesSeleccionadas((prevCiudades) => {
+  //       // Obtenemos las ciudades seleccionadas previamente
+  //       const prevCiudadesSeleccionadas = { ...prevCiudades };
+  //       // Añadimos o quitamos las ciudades de la región seleccionada
+  //       if (response.data.length > 0) {
+  //         prevCiudadesSeleccionadas[region] = response.data.map((ciudad) => ciudad.ciudad);
+  //         console.log('Ciudades seleccionadas actualizadas:', prevCiudadesSeleccionadas);
+  
+  //         // Seleccionamos los checkboxes de las ciudades correspondientes
+  //         response.data.forEach((ciudad) => {
+  //           document.querySelector(`input[value='${ciudad.ciudad}']`).checked = true;
+  //         });
+  //       } else {
+  //         delete prevCiudadesSeleccionadas[region];
+  //         console.log('No hay ciudades para la región:', region);
+  //       }
+  //       return { ...prevCiudadesSeleccionadas };
+  //     });
+  //   } catch (error) {
+  //     console.error('Error al obtener las ciudades de la región:', error);
+  //   }
+  // };
+
+  const handleRegionChange = async (region) => {
+    try {
+      const response = await axios.get(`http://localhost:3000/ciudadesporregion/${region}`);
+  
+      console.log('Ciudades de la región', region, ':', response.data);
+      
+      setCiudadesSeleccionadas((prevCiudades) => {
+        // Obtenemos las ciudades seleccionadas previamente
+        const prevCiudadesSeleccionadas = { ...prevCiudades };
+        
+        // Verificamos si la región ya está seleccionada
+        const regionAlreadySelected = prevCiudadesSeleccionadas.hasOwnProperty(region);
+  
+        // Si la región está seleccionada, la deseleccionamos
+        if (regionAlreadySelected) {
+          delete prevCiudadesSeleccionadas[region];
+          console.log('Región deseleccionada:', region);
+          
+          // Deseleccionamos los checkboxes de las ciudades correspondientes
+          response.data.forEach((ciudad) => {
+            document.querySelector(`input[value='${ciudad.ciudad}']`).checked = false;
+          });
+        } else {
+          // Si la región no está seleccionada, la seleccionamos
+          prevCiudadesSeleccionadas[region] = response.data.map((ciudad) => ciudad.ciudad);
+          console.log('Ciudades seleccionadas actualizadas:', prevCiudadesSeleccionadas);
+          
+          // Seleccionamos los checkboxes de las ciudades correspondientes
+          response.data.forEach((ciudad) => {
+            document.querySelector(`input[value='${ciudad.ciudad}']`).checked = true;
+          });
+        }
+        return { ...prevCiudadesSeleccionadas };
+      });
+    } catch (error) {
+      console.error('Error al obtener las ciudades de la región:', error);
+    }
+  };
+  
+  
+
+  // const handleDivisionChange = async (division) => {
+  //   try {
+  //     // Realiza una solicitud GET a /ciudadesporregion/:division
+  //     const response = await axios.get(`http://localhost:3000/regionespordivision/${division}`);
+  
+  //     // Maneja la respuesta de la API
+  //     console.log('Ciudades de la región', division, ':', response.data);
+      
+  //     // Aquí puedes realizar cualquier otra lógica que necesites con los datos de las ciudades
+  //   } catch (error) {
+  //     console.error('Error al obtener las ciudades de la región:', error);
+  //     // Maneja el error como desees
+  //   }
+  // };
+
+  // AQUI VAMOS AUN NO FUNCIONA 07:56 p. m. 09/04/2024
+  const handleDivisionChange = async (division) => {
+    try {
+      // Realizar solicitud para obtener las regiones y ciudades de la división seleccionada
+      const response = await axios.get(`http://localhost:3000/regionesyciudadespordivision/${division}`);
+      
+      console.log('Regiones y ciudades de la división', division, ':', response.data);
+      
+      const newCiudadesSeleccionadas = {};
+  
+      // Iterar sobre las regiones y ciudades de la división seleccionada
+      response.data.forEach((regionData) => {
+        const region = regionData.region;
+        const ciudades = regionData.ciudades;
+        
+        // Seleccionar la región
+        newCiudadesSeleccionadas[region] = ciudades.map(ciudad => ciudad.nombre);
+        
+        // Seleccionar las ciudades de la región
+        ciudades.forEach(ciudad => {
+          document.querySelector(`input[value='${ciudad.nombre}']`).checked = true;
+        });
+      });
+  
+      console.log('Ciudades seleccionadas actualizadas:', newCiudadesSeleccionadas);
+  
+      // Actualizar el estado con las ciudades seleccionadas
+      setCiudadesSeleccionadas(newCiudadesSeleccionadas);
+    } catch (error) {
+      console.error('Error al obtener las regiones y ciudades de la división:', error);
+    }
+  };
+  
+  
+
+  // -----------------------------------------------------------------------------------------------
+  
+  // PUESTOS
+  const handleCheckboxChangePuestos = (event) => {
+    const { id, checked } = event.target;
+  
+    if (id === 'todos') {
+      // Si se selecciona "Todos", se actualizan todos los checkboxes y se inhabilitan los demás
+      setPuestosSeleccionados(checked ? ['Ejecutivo ATC', 'Ejecutivo Sr ATC', 'Gerente ATC', 'Jefe ATC', 'Jefe Regional ATC'] : []);
+  
+      // Habilitar o inhabilitar los checkboxes de puestos según el estado de "todos"
+      const checkboxes = document.querySelectorAll('.puesto-checkbox');
+      checkboxes.forEach(checkbox => {
+        checkbox.disabled = checked;
+      });
+    } else {
+      if (checked) {
+        // Si se selecciona un puesto individual, se agrega a la lista de puestos seleccionados
+        setPuestosSeleccionados(prevPuestos => [...prevPuestos, id]);
+      } else {
+        // Si se deselecciona un puesto individual, se elimina de la lista de puestos seleccionados
+        setPuestosSeleccionados(prevPuestos => prevPuestos.filter(puesto => puesto !== id));
+      }
+  
+      // Si se deselecciona "todos", habilitar todos los checkboxes de puestos
+      const todosCheckbox = document.getElementById('todos');
+      if (!checked && todosCheckbox.checked) {
+        const checkboxes = document.querySelectorAll('.puesto-checkbox');
+        checkboxes.forEach(checkbox => {
+          checkbox.disabled = false;
+        });
+      }
+    }
+  };
+    
+  // COMUNICADOS DATA
+  const fetchData = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/comunicados');
+      setComunicados(response.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+
+  }, []);
+
+  // Obtener marcas de la base de datos
+  useEffect(() => {
+    async function fetchMarcas() {
+      try {
+        const response = await axios.get('http://localhost:3000/marcas');
+        setMarcas(response.data);
+      } catch (error) {
+        console.error('Error fetching marcas:', error);
+      }
+    }
+
+    fetchMarcas();
+  }, []);
+
+
+  // PORTADA
+  const handlePortadaChange = (event) => {
+    const file = event.target.files[0];
+    // Validar que sea una imagen
+    if (file.type.startsWith('image/')) {
+      setPortada(file);
+    } else {
+      Swal.fire("Formato inválido", "Por favor selecciona una imagen.", "error");
+    }
+  };
+
+  // ARCHIVO PDF
+  const handlePdfChange = (event) => {
+    const file = event.target.files[0];
+    // Validar que sea un archivo PDF
+    if (file.type === 'application/pdf') {
+      setPdf(file);
+    } else {
+      Swal.fire("Formato inválido", "Por favor selecciona un archivo PDF.", "error");
+    }
+  };
+
+  // CREAR COMUNICADO 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+  
+    if (!titulo.trim() || !descripcion.trim()) {
+      Swal.fire("Campos vacíos", "Por favor completa todos los campos.", "error");
+      return;
+    }
+  
+    if (titulo.length < 5 || descripcion.length < 10) {
+      Swal.fire("Campos inválidos", "El título debe tener al menos 5 caracteres y la descripción al menos 10.", "error");
+      return;
+    }
+  
+    if (!portada) {
+      Swal.fire("Falta la portada", "Por favor selecciona una imagen de portada.", "error");
+      return;
+    }
+  
+    // Validar que se haya seleccionado una marca
+    if (!marcaSeleccionada) {
+      Swal.fire("Error", "Por favor selecciona una marca.", "error");
+      return;
+    }
+  
+    // Validar que se haya seleccionado al menos un puesto
+    if (puestosSeleccionados.length === 0) {
+      Swal.fire("Error", "Por favor selecciona al menos un puesto.", "error");
+      return;
+    }
+  
+    try {
+      // Crear un objeto FormData para enviar los datos del formulario
+      const formData = new FormData();
+      formData.append('titulo', titulo);
+      formData.append('descripcion', descripcion);
+      formData.append('marca', marcaSeleccionada);
+      formData.append('portada', portada);
+      formData.append('pdf', pdf);
+  
+      // Agregar puestos seleccionados al FormData
+      puestosSeleccionados.forEach((puesto) => {
+        formData.append('puestos[]', puesto);
+      });
+
+      console.log(formData)
+  
+      // Enviar la solicitud POST al servidor con axios
+      const response = await axios.post('http://localhost:3000/comunicados', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+  
+      // Manejar la respuesta del servidor y mostrar una alerta
+      console.log('Comunicado creado:', response.data);
+      Swal.fire("¡Éxito!", "Comunicado creado exitosamente.", "success");
+  
+      // Limpiar los campos del formulario después de enviar
+      setTitulo('');
+      setDescripcion('');
+      setMarcaSeleccionada('');
+      setPortada(null);
+      setPdf(null);
+  
+      // Actualizar la lista de comunicados
+      fetchData();
+    } catch (error) {
+      console.error('Error al crear el comunicado:', error);
+      Swal.fire("Error", "Hubo un problema al crear el comunicado.", "error");
+    }
+  };
+
+  // EDITAR COMUNICADO 
+  const handleEdit = async (id) => {
+    try {
+      const response = await axios.get(`http://localhost:3000/comunicados/${id}`);
+      setComunicadoEditando(response.data);
+      setMostrarModalEdicion(true);
+    } catch (error) {
+      console.error('Error al obtener el comunicado para editar:', error);
+      Swal.fire("Error", "Hubo un problema al obtener el comunicado para editar.", "error");
+    }
+  };
+  
+  const handleSubmitEdit = async (id, event) => {
+    event.preventDefault();
+  
+    try {
+      const formData = new FormData();
+      let dataToUpdate = {};
+  
+      // Verificar y agregar el campo 'titulo' si ha cambiado
+      if (titulo !== comunicadoEditando.titulo) {
+        formData.append('titulo', titulo);
+        dataToUpdate.titulo = titulo;
+      }
+  
+      // Verificar y agregar el campo 'descripcion' si ha cambiado
+      if (descripcion !== comunicadoEditando.descripcion) {
+        formData.append('descripcion', descripcion);
+        dataToUpdate.descripcion = descripcion;
+      }
+  
+      // Verificar y agregar el campo 'portada' si se ha seleccionado una nueva
+      if (portada) {
+        formData.append('portada', portada);
+        dataToUpdate.portada = portada;
+      }
+  
+      // Si no hay cambios, mostrar un mensaje y salir
+      if (Object.keys(dataToUpdate).length === 0) {
+        Swal.fire("Nada que actualizar", "No se han realizado cambios en el comunicado.", "info");
+        return;
+      }
+  
+      // Realizar la solicitud PATCH solo si hay datos para actualizar
+      await axios.patch(`http://localhost:3000/comunicados/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+  
+      // Limpiar los campos y mostrar un mensaje de éxito
+      setTitulo('');
+      setDescripcion('');
+      setPortada(null);
+  
+      Swal.fire("¡Éxito!", "Comunicado actualizado exitosamente.", "success");
+  
+      // Actualizar los datos si es necesario
+      fetchData();
+    } catch (error) {
+      console.error('Error al enviar el formulario:', error);
+      Swal.fire("Error", "Hubo un problema al enviar el formulario.", "error");
+    }
+  };
+
+  // ELIMINAR COMUNICADO 
+  const handleDelete = async (id) => {
+    // Mostrar una alerta de confirmación antes de eliminar el comunicado
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, eliminarlo'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`http://localhost:3000/comunicados/${id}`);
+          setComunicados(comunicados.filter(comunicado => comunicado.id !== id));
+          Swal.fire("¡Éxito!", "Comunicado eliminado exitosamente.", "success");
+        } catch (error) {
+          console.error('Error al eliminar el comunicado:', error);
+          Swal.fire("Error", "Hubo un problema al eliminar el comunicado.", "error");
+        }
+      }
+    });
+  };
+
+
+  return (
+    <div className="container">
+      <h1 className="mt-5 mb-4">Crear Comunicado</h1>
+      <form onSubmit={handleSubmit}>
+
+        {/* Título */}
+        <div className="mb-3">
+          <label htmlFor="titulo" className="form-label">Título:</label>
+          <input
+            type="text"
+            className="form-control"
+            id="titulo"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+          />
+        </div>
+
+        {/* Descripción */}
+        <div className="mb-3">
+          <label htmlFor="descripcion" className="form-label">Descripción:</label>
+          <textarea
+            className="form-control"
+            id="descripcion"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+          />
+        </div>
+
+        {/* Portada */}
+        <div className="mb-3">
+          <label htmlFor="portada" className="form-label">Portada (Imagen):</label>
+          <input type="file" className="form-control" id="portada" accept="image/*" onChange={handlePortadaChange}  />
+        </div>
+
+        {/* Archivo */}
+        <div className="mb-3">
+          <label htmlFor="pdf" className="form-label">Archivo PDF:</label>
+          <input type="file" className="form-control" id="pdf" accept=".pdf" onChange={handlePdfChange}  />
+        </div>
+
+        {/* Marcas */}
+        <div className="mt-3">
+          <h2>Marcas</h2>
+          <div className="form-group mt-2">
+            <label htmlFor="selectOption">Selecciona una opción:</label>
+            <select name="marca" id="selectOption" className="form-control" value={marcaSeleccionada} onChange={handleChangeMarca}>
+              <option value="" disabled>Seleccionar ...</option>
+              <option value="nacional">Nacional</option>
+              <option value="izzi">izzi</option>
+              <option value="wizz">wizz</option>
+              <option value="wizz plus">wizz plus</option>
+            </select>
+          </div>
+          <p className="mt-2">Seleccionaste: {marcaSeleccionada}</p>
+        </div>
+
+        {/* Puestos */}
+        <div className="mt-3">
+          <h2>Puestos</h2>
+          <div className="mt-2">
+            <input type="checkbox" id="todos" onChange={handleCheckboxChangePuestos} /> {' '}
+            <label htmlFor="todos">Todos</label>
+          </div>
+          <div className="mt-2">
+            <input type="checkbox" id="Ejecutivo ATC" className="puesto-checkbox" onChange={handleCheckboxChangePuestos} /> {' '}
+            <label htmlFor="Ejecutivo ATC">Ejecutivo ATC</label>
+          </div>
+          <div className="mt-2">
+            <input type="checkbox" id="Ejecutivo Sr ATC" className="puesto-checkbox" onChange={handleCheckboxChangePuestos} /> {' '}
+            <label htmlFor="Ejecutivo Sr ATC">Ejecutivo Sr ATC</label>
+          </div>
+          <div className="mt-2">
+            <input type="checkbox" id="Gerente ATC" className="puesto-checkbox" onChange={handleCheckboxChangePuestos} /> {' '}
+            <label htmlFor="Gerente ATC">Gerente ATC</label>
+          </div>
+          <div className="mt-2">
+            <input type="checkbox" id="Jefe ATC" className="puesto-checkbox" onChange={handleCheckboxChangePuestos} /> {' '}
+            <label htmlFor="Jefe ATC">Jefe ATC</label>
+          </div>
+          <div className="mt-2">
+            <input type="checkbox" id="Jefe Regional ATC" className="puesto-checkbox" onChange={handleCheckboxChangePuestos} /> {' '}
+            <label htmlFor="Jefe Regional ATC">Jefe Regional ATC</label>
+          </div>
+          {/* Muestra el puesto seleccionado */}
+          <p className='mt-2'>Puestos seleccionados: {puestosSeleccionados.join(', ')}</p>
+          { console.log(puestosSeleccionados) }
+        </div>
+
+          {/* Selecciona todas las ciudades */}
+          <hr />
+          <div className="mt-2 mb-2">
+            <h2>Divisiones, Regiones y Ciudades</h2>
+            <input
+              type='checkbox'
+              onChange={handleCheckboxChangeAll}
+            /> {' '}
+            <label htmlFor="">Seleccionar Todo</label>
+          </div>
+
+          {/* Mostrar ciudades */}
+          {Object.keys(ciudades).map((division) => (
+            <div key={division}>
+              <hr />
+              {/* <input 
+                type='checkbox' 
+                value={division} 
+                onChange={() => handleDivisionChange(division)}
+              /> {' '} */}
+              <input
+                type='checkbox'
+                checked={selectAll}
+                onChange={handleCheckboxChangeAll}
+              /> {' '}
+              
+              <label htmlFor="" style={{ fontSize:"30px", fontWeight:"bold" }}>{division}</label>
+              <div className="row">
+                {Object.keys(ciudades[division]).map((region) => (
+                  <div key={region} className="col-md-4">
+                    <input 
+                      type='checkbox' 
+                      value={region} 
+                      // Aquí se llama a la función handleRegionChange al cambiar el checkbox
+                      onChange={() => handleRegionChange(region)}
+                    /> {' '}
+                    <label htmlFor="" style={{ fontSize: "20px", fontWeight:"bold"}}>{region}</label>
+
+                    <ul>
+                      {ciudades[division][region].map((ciudad) => (
+                        <>
+                          <input 
+                            type='checkbox'
+                            key={ciudad.id} 
+                            value={ciudad.ciudad}
+                          /> {' '}
+                          <label htmlFor="">{ciudad.ciudad}</label>
+                          <br />
+                        </>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* <p>Selecciones: {ciudadesSeleccionadas.join(', ')}</p> NO MUESTRA NADA */}
+          
+
+        <button type="submit" className="btn btn-primary mt-5">Guardar</button>
+      </form>
+
+      {/* Tabla */}
+      {comunicados.length > 0 ? (
+        <div>
+          <h2 className="mt-5">Comunicados</h2>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Descripción</th>
+                <th>Portada</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comunicados.map(comunicado => (
+                <tr key={comunicado.id}>
+                  <td>{comunicado.id}</td>
+                  <td>{comunicado.titulo}</td>
+                  <td>{comunicado.descripcion}</td>
+                  <td>{comunicado.portada}</td>
+                  <td>
+                    <button className="btn btn-warning me-2" onClick={() => handleEdit(comunicado.id)}>Editar</button>
+                    <button className="btn btn-danger" onClick={() => handleDelete(comunicado.id)}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <h2 className="mt-5 text-center">No hay comunicados</h2>
+      )}
+
+      {/* Formulario Editar */}
+      <Modal show={mostrarModalEdicion} onHide={() => setMostrarModalEdicion(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Editar Comunicado</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <form onSubmit={(e) => handleSubmitEdit(comunicadoEditando.id, e)}>
+            <div className="mb-3">
+              <label htmlFor="editTitulo" className="form-label">Título:</label>
+              <input
+                type="text"
+                className="form-control"
+                id="editTitulo"
+                value={comunicadoEditando ? comunicadoEditando.titulo : ''}
+                onChange={(e) => setComunicadoEditando({ ...comunicadoEditando, titulo: e.target.value })}
+              />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="editDescripcion" className="form-label">Descripción:</label>
+              <textarea
+                className="form-control"
+                id="editDescripcion"
+                value={comunicadoEditando ? comunicadoEditando.descripcion : ''}
+                onChange={(e) => setComunicadoEditando({ ...comunicadoEditando, descripcion: e.target.value })}
+              />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="editPortada" className="form-label">Portada:</label>
+              <input
+                type="file"
+                className="form-control"
+                id="editPortada"
+                onChange={handlePortadaChange}
+              />
+            </div>
+            <div className="d-flex justify-content-between">
+              <Button variant="primary" type="submit">Guardar Cambios</Button>
+              <Button variant="secondary" onClick={() => setMostrarModalEdicion(false)}>Cancelar</Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
+
+    </div>
+  );
+}
+
+export default App;
+
